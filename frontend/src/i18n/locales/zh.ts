@@ -2437,7 +2437,13 @@ export default {
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',
         apiKeyPassthroughDesc:
-          '仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。'
+          '仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。',
+        passthroughMode: '透传模式',
+        passthroughModeDesc:
+          'Anthropic `messages` / `count_tokens` 的请求侧协议模式。`compat` 保持现有兼容链路，`auth_only` 仅替换认证，`full` 尽量保留原始请求头与请求体并只注入上游认证。',
+        passthroughModeCompat: 'compat（兼容模式）',
+        passthroughModeAuthOnly: 'auth_only（仅替换认证）',
+        passthroughModeFull: 'full（完整透传）'
       },
       modelRestriction: '模型限制（可选）',
       modelWhitelist: '模型白名单',

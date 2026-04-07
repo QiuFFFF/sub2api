@@ -2289,7 +2289,13 @@ export default {
       anthropic: {
         apiKeyPassthrough: 'Auto passthrough (auth only)',
         apiKeyPassthroughDesc:
-          'Only applies to Anthropic API Key accounts. When enabled, messages/count_tokens are forwarded in passthrough mode with auth replacement only, while billing/concurrency/audit and safety filtering are preserved. Disable to roll back immediately.'
+          'Only applies to Anthropic API Key accounts. When enabled, messages/count_tokens are forwarded in passthrough mode with auth replacement only, while billing/concurrency/audit and safety filtering are preserved. Disable to roll back immediately.',
+        passthroughMode: 'Passthrough mode',
+        passthroughModeDesc:
+          'Request-side protocol mode for Anthropic `messages` / `count_tokens`. `compat` keeps the existing compatibility path, `auth_only` only replaces upstream auth, and `full` preserves the original request headers/body as much as possible while injecting only upstream auth.',
+        passthroughModeCompat: 'compat (compatibility)',
+        passthroughModeAuthOnly: 'auth_only (auth replacement only)',
+        passthroughModeFull: 'full (full passthrough)'
       },
       modelRestriction: 'Model Restriction (Optional)',
       modelWhitelist: 'Model Whitelist',

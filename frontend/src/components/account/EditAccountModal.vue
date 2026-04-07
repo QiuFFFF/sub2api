@@ -1119,33 +1119,21 @@
         </div>
       </div>
 
-      <!-- Anthropic API Key 自动透传开关 -->
+      <!-- Anthropic 透传模式 -->
       <div
-        v-if="account?.platform === 'anthropic' && account?.type === 'apikey'"
+        v-if="isAnthropicPassthroughModeVisible"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
           <div>
-            <label class="input-label mb-0">{{ t('admin.accounts.anthropic.apiKeyPassthrough') }}</label>
+            <label class="input-label mb-0">{{ t('admin.accounts.anthropic.passthroughMode') }}</label>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.anthropic.apiKeyPassthroughDesc') }}
+              {{ t('admin.accounts.anthropic.passthroughModeDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="anthropicPassthroughEnabled = !anthropicPassthroughEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              anthropicPassthroughEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                anthropicPassthroughEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <div class="w-52">
+            <Select v-model="anthropicPassthroughMode" :options="anthropicPassthroughModeOptions" />
+          </div>
         </div>
       </div>
 
@@ -1751,7 +1739,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
-import type { Account, Proxy, AdminGroup, CheckMixedChannelResponse } from '@/types'
+import type { Account, AccountType, Proxy, AdminGroup, CheckMixedChannelResponse } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -1761,6 +1749,15 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import {
+  ANTHROPIC_PASSTHROUGH_MODE_AUTH_ONLY,
+  ANTHROPIC_PASSTHROUGH_MODE_COMPAT,
+  ANTHROPIC_PASSTHROUGH_MODE_FULL,
+  resolveAnthropicPassthroughModeFromExtra,
+  writeAnthropicPassthroughModeToExtra,
+  type AnthropicPassthroughAccountType,
+  type AnthropicPassthroughMode
+} from '@/utils/anthropicPassthroughMode'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -1897,7 +1894,7 @@ const openaiPassthroughEnabled = ref(false)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
-const anthropicPassthroughEnabled = ref(false)
+const anthropicPassthroughMode = ref<AnthropicPassthroughMode>(ANTHROPIC_PASSTHROUGH_MODE_COMPAT)
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -1931,6 +1928,38 @@ const openaiResponsesWebSocketV2Mode = computed({
 const openAIWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openaiResponsesWebSocketV2Mode.value)
 )
+const currentAnthropicPassthroughType = computed<AnthropicPassthroughAccountType | null>(() => {
+  const type = props.account?.type
+  if (type === 'oauth' || type === 'setup-token' || type === 'apikey') {
+    return type
+  }
+  return null
+})
+const isAnthropicPassthroughModeVisible = computed(() =>
+  props.account?.platform === 'anthropic' && currentAnthropicPassthroughType.value !== null
+)
+const anthropicPassthroughModeOptions = computed(() => {
+  const options = [
+    {
+      value: ANTHROPIC_PASSTHROUGH_MODE_COMPAT,
+      label: t('admin.accounts.anthropic.passthroughModeCompat')
+    }
+  ]
+
+  if (currentAnthropicPassthroughType.value === 'apikey') {
+    options.push({
+      value: ANTHROPIC_PASSTHROUGH_MODE_AUTH_ONLY,
+      label: t('admin.accounts.anthropic.passthroughModeAuthOnly')
+    })
+  }
+
+  options.push({
+    value: ANTHROPIC_PASSTHROUGH_MODE_FULL,
+    label: t('admin.accounts.anthropic.passthroughModeFull')
+  })
+
+  return options
+})
 const isOpenAIModelRestrictionDisabled = computed(() =>
   props.account?.platform === 'openai' && openaiPassthroughEnabled.value
 )
@@ -2066,7 +2095,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   codexCLIOnlyEnabled.value = false
-  anthropicPassthroughEnabled.value = false
+  anthropicPassthroughMode.value = ANTHROPIC_PASSTHROUGH_MODE_COMPAT
   if (newAccount.platform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
     openaiPassthroughEnabled.value = extra?.openai_passthrough === true || extra?.openai_oauth_passthrough === true
     openaiOAuthResponsesWebSocketV2Mode.value = resolveOpenAIWSModeFromExtra(extra, {
@@ -2085,8 +2114,11 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       codexCLIOnlyEnabled.value = extra?.codex_cli_only === true
     }
   }
-  if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
-    anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
+  if (
+    newAccount.platform === 'anthropic' &&
+    (newAccount.type === 'oauth' || newAccount.type === 'setup-token' || newAccount.type === 'apikey')
+  ) {
+    anthropicPassthroughMode.value = resolveAnthropicPassthroughModeFromExtra(extra, newAccount.type)
   }
 
   // Load quota limit for apikey/bedrock accounts (bedrock quota is also loaded in its own branch above)
@@ -2315,6 +2347,14 @@ const loadTLSProfiles = async () => {
   } catch {
     tlsFingerprintProfiles.value = []
   }
+}
+
+const buildAnthropicExtra = (
+  base?: Record<string, unknown>,
+  type: AccountType | null = props.account?.type ?? null
+): Record<string, unknown> | undefined => {
+  const extra = writeAnthropicPassthroughModeToExtra(base, type, anthropicPassthroughMode.value)
+  return Object.keys(extra).length > 0 ? extra : undefined
 }
 
 // Model mapping helpers
@@ -3034,19 +3074,14 @@ const handleSubmit = async () => {
         delete newExtra.custom_base_url
       }
 
-      updatePayload.extra = newExtra
+      updatePayload.extra = buildAnthropicExtra(newExtra, props.account.type)
     }
 
     // For Anthropic API Key accounts, handle passthrough mode in extra
     if (props.account.platform === 'anthropic' && props.account.type === 'apikey') {
       const currentExtra = (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
-      if (anthropicPassthroughEnabled.value) {
-        newExtra.anthropic_passthrough = true
-      } else {
-        delete newExtra.anthropic_passthrough
-      }
-      updatePayload.extra = newExtra
+      updatePayload.extra = buildAnthropicExtra(newExtra, props.account.type)
     }
 
     // For OpenAI OAuth/API Key accounts, handle passthrough mode in extra
