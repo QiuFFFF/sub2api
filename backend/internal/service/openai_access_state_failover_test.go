@@ -406,6 +406,9 @@ func TestOpenAIStreamPairedFailureAppliesAccountSideEffectsOnce(t *testing.T) {
 }
 
 func TestOpenAIStreamOAuthLike429GetsDeadlineWithoutImmediateRuntimeBlock(t *testing.T) {
+	if openAIOAuth429RetryWindow <= 0 {
+		t.Skip("local patch: OAuth 429 same-account retry window disabled")
+	}
 	for _, accountType := range []string{AccountTypeOAuth, AccountTypeSetupToken} {
 		t.Run(accountType, func(t *testing.T) {
 			svc := &OpenAIGatewayService{}

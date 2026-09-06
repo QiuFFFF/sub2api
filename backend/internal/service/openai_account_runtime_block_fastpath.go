@@ -12,7 +12,7 @@ import (
 const (
 	openAIAccountStateUpdateTimeout       = 5 * time.Second
 	openAIOAuth429FallbackCooldown        = 60 * time.Second // local patch: 原 5s，429 后冷却更久，避免 sticky 会话立刻绑回同号
-	openAIOAuth429RetryWindow             = 10 * time.Second // local patch: 原 2min，缩短同号重试窗口，尽快切换账号
+	openAIOAuth429RetryWindow             = 0                // local patch: 原 2min。0 = 禁用同号重试，恢复 v0.1.179 语义：429 立即封号并切换账号
 	openAIOAuth429RetryDelay              = 500 * time.Millisecond
 	openAIOAuth429MaxRetryDelay           = 2 * time.Second // local patch: 原 8s，Retry-After 上限
 	openAIOAuth429MaxAccountAttempts      = 3
@@ -275,6 +275,10 @@ func (s *OpenAIGatewayService) ShouldRetryOpenAIOAuth429(account *Account, heade
 
 func (s *OpenAIGatewayService) openAIOAuth429RetryWindowActive(account *Account) bool {
 	if s == nil || !isOpenAIOAuthAccount(account) || account.IsShadow() {
+		return false
+	}
+	if openAIOAuth429RetryWindow <= 0 {
+		// local patch: 窗口禁用时不记录起点，直接走封号/切换（v0.1.179 语义）。
 		return false
 	}
 	now := time.Now()

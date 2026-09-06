@@ -554,6 +554,9 @@ func TestOpenAIWSErrorHTTPStatusFromRaw_UsageLimitReachedIs429(t *testing.T) {
 }
 
 func TestOpenAIWSRateLimitFailoverError_OAuthKeepsSameAccountDeadline(t *testing.T) {
+	if openAIOAuth429RetryWindow <= 0 {
+		t.Skip("local patch: OAuth 429 same-account retry window disabled")
+	}
 	svc := &OpenAIGatewayService{}
 	headers := http.Header{"Retry-After": []string{"30"}}
 	body := []byte(`{"error":{"type":"rate_limit_error","message":"limited"}}`)
