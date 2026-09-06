@@ -34,6 +34,9 @@ const (
 	// maxSameAccountRetries 同账号重试次数默认上限（针对 RetryableOnSameAccount 错误）。
 	// 生产调用方通常传入账号级配置 account.GetPoolModeRetryCount()，该常量仅作兜底/测试默认值。
 	maxSameAccountRetries = 3
+	// local patch: OAuth 429 deadline 路径的每请求硬上限。窗口起点是账号级的，
+	// 该账号上其他请求成功会清掉起点并让下一个 429 重开窗口，导致同一请求可无限续期。
+	oauth429SameAccountRetryHardCap = 5
 	// sameAccountRetryDelay 同账号重试间隔
 	sameAccountRetryDelay = 500 * time.Millisecond
 	// maxRequestScopedRetryDelay 限制请求级瞬时错误的指数退避上限，避免高重试配置
@@ -95,9 +98,10 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 		return retryCount < retryLimit
 	}
 	// OAuth 429 explicitly opts into a deadline window. It is intentionally not
-	// bounded by the ordinary/default pool retry count.
+	// bounded by the ordinary/default pool retry count, but (local patch) it is
+	// bounded per request so a window renewed by other requests cannot extend it.
 	if !failoverErr.SameAccountRetryDeadline.IsZero() {
-		return true
+		return retryCount < oauth429SameAccountRetryHardCap
 	}
 	return retryLimit > 0 && retryCount < retryLimit
 }

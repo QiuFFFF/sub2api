@@ -70,8 +70,9 @@ func TestSameAccountRetryAllowedUsesDeadlineInsteadOfPoolCount(t *testing.T) {
 		RetryableOnSameAccount:   true,
 		SameAccountRetryDeadline: time.Now().Add(time.Minute),
 	}
-	require.True(t, sameAccountRetryAllowed(err, 100, 0))
-	require.True(t, sameAccountRetryAllowed(err, 100, maxSameAccountRetries))
+	require.True(t, sameAccountRetryAllowed(err, oauth429SameAccountRetryHardCap-1, 0))
+	require.True(t, sameAccountRetryAllowed(err, oauth429SameAccountRetryHardCap-1, maxSameAccountRetries))
+	require.False(t, sameAccountRetryAllowed(err, oauth429SameAccountRetryHardCap, 0), "local patch: per-request hard cap")
 	err.SameAccountRetryDeadline = time.Now().Add(-time.Second)
 	require.False(t, sameAccountRetryAllowed(err, 0, 100))
 }
