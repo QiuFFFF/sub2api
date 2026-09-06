@@ -11,10 +11,10 @@ import (
 
 const (
 	openAIAccountStateUpdateTimeout       = 5 * time.Second
-	openAIOAuth429FallbackCooldown        = 5 * time.Second
-	openAIOAuth429RetryWindow             = 2 * time.Minute
+	openAIOAuth429FallbackCooldown        = 60 * time.Second // local patch: 原 5s，429 后冷却更久，避免 sticky 会话立刻绑回同号
+	openAIOAuth429RetryWindow             = 10 * time.Second // local patch: 原 2min，缩短同号重试窗口，尽快切换账号
 	openAIOAuth429RetryDelay              = 500 * time.Millisecond
-	openAIOAuth429MaxRetryDelay           = 8 * time.Second
+	openAIOAuth429MaxRetryDelay           = 2 * time.Second // local patch: 原 8s，Retry-After 上限
 	openAIOAuth429MaxAccountAttempts      = 3
 	openAIStopSchedulingBridgeCooldown    = 2 * time.Minute
 	openAIOAuth429StormWindow             = 10 * time.Second
